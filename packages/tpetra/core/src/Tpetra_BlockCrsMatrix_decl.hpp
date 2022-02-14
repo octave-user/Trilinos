@@ -255,6 +255,8 @@ public:
   /// \param blockSize [in] Number of degrees of freedom per mesh point.
   BlockCrsMatrix (const crs_graph_type& graph, const LO blockSize);
 
+  BlockCrsMatrix (const crs_graph_type& graph, const Kokkos::View<Scalar*, device_type> &values, const LO blockSize);
+
   /// \brief Constructor that takes a graph, domain and range point
   ///   Maps, and a block size.
   ///
