@@ -45,8 +45,12 @@
 
 #include "Tpetra_CrsGraph.hpp"
 #include "Tpetra_RowMatrix.hpp"
+#include "Tpetra_Vector.hpp"
 #include "Tpetra_BlockMultiVector_decl.hpp"
 #include "Tpetra_CrsMatrix_decl.hpp"
+#include "Tpetra_BlockCrsMatrix_decl.hpp"
+
+#include "KokkosSparse_BsrMatrix.hpp"
 
 namespace Tpetra {
 
@@ -237,6 +241,17 @@ public:
   using nonconst_values_host_view_type =
         typename row_matrix_type::nonconst_values_host_view_type;
 
+  using local_graph_device_type = typename crs_graph_type::local_graph_device_type;
+
+  using  local_matrix_device_type =
+    KokkosSparse::Experimental::BsrMatrix<impl_scalar_type,
+                          local_ordinal_type,
+                          device_type,
+                          void,
+                          typename local_graph_device_type::size_type>;
+  using local_matrix_host_type =
+    typename local_matrix_device_type::HostMirror;
+
   //@}
   //! \name Constructors and destructor
   //@{
@@ -255,7 +270,7 @@ public:
   /// \param blockSize [in] Number of degrees of freedom per mesh point.
   BlockCrsMatrix (const crs_graph_type& graph, const LO blockSize);
 
-  BlockCrsMatrix (const crs_graph_type& graph, const Kokkos::View<Scalar*, device_type> &values, const LO blockSize);
+  BlockCrsMatrix (const crs_graph_type& graph, const Kokkos::View<Scalar*, device_type> &values, const LO blockSize, const bool use_kokkos_kernels = false);
 
   /// \brief Constructor that takes a graph, domain and range point
   ///   Maps, and a block size.
@@ -896,6 +911,8 @@ private:
   /// construction) outer pointer.
   Teuchos::RCP<Teuchos::RCP<std::ostringstream> > errs_;
 
+  bool use_kokkos_kernels_spmv_impl;
+
   //! Mark that a local error occurred, and get a stream for reporting it.
   std::ostream& markLocalErrorAndGetStream ();
 
@@ -1159,6 +1176,9 @@ private:
 
 
 public:
+
+  local_matrix_device_type getLocalMatrixDevice () const;
+
   //! The communicator over which this matrix is distributed.
   virtual Teuchos::RCP<const Teuchos::Comm<int> > getComm() const override;
 
