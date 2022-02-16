@@ -160,6 +160,7 @@ int main (int argc, char *argv[])
 
     LO blocksize = 5, nrhs = 1, repeat = 100;
     bool dump_sparse_matrix = false;
+    bool use_kokkos_kernels = false;
 
     Teuchos::CommandLineProcessor clp (false);
     clp.setDocString ("Tpetra::BlockCrsMatrix performance test using 3-D 7-point stencil.\n");
@@ -182,6 +183,9 @@ int main (int argc, char *argv[])
                    "If true, dump the test sparse matrix to a MatrixMarket file "
                    "in the current directory.  This is a debugging option and may "
                    "take a lot of disk space and time.");
+    clp.setOption ("use-kokkos-kernels-impl", "use-tpetra-impl", &use_kokkos_kernels,
+                   "If true, use the Kokkos-Kernels Bsr matrix local apply inside "
+                   "tpetra BlockCrs. If false, use the inernal tpetra implementation.");
 
     {
       bool returnEarly = false;
@@ -501,7 +505,8 @@ int main (int argc, char *argv[])
 
       RCP<tpetra_blockcrs_matrix_type> A_bcrs (new tpetra_blockcrs_matrix_type (*bcrs_graph,
                                                                                 bcrs_values,
-                                                                                blocksize));
+                                                                                blocksize,
+                                                                                use_kokkos_kernels));
 
       {
         TimeMonitor timerBlockCrsFillComplete(*TimeMonitor::getNewTimer("3) BlockCrsMatrix FillComplete - currently do nothing"));
