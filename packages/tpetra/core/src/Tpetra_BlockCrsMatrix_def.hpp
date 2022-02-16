@@ -49,6 +49,10 @@
 #include "Tpetra_BlockMultiVector.hpp"
 #include "Tpetra_BlockView.hpp"
 
+#include "Tpetra_BlockCrsMatrix_decl.hpp"
+
+#include "KokkosSparse.hpp"
+
 #include "Teuchos_TimeMonitor.hpp"
 #ifdef HAVE_TPETRA_DEBUG
 #  include <set>
@@ -662,7 +666,8 @@ public:
     pointImporter_ (new Teuchos::RCP<typename crs_graph_type::import_type> ()),
     offsetPerBlock_ (0),
     localError_ (new bool (false)),
-    errs_ (new Teuchos::RCP<std::ostringstream> ()) // ptr to a null ptr
+    errs_ (new Teuchos::RCP<std::ostringstream> ()), // ptr to a null ptr
+    use_kokkos_kernels_spmv_impl(false)
   {
   }
 
@@ -679,7 +684,8 @@ public:
     pointImporter_ (new Teuchos::RCP<typename crs_graph_type::import_type> ()),
     offsetPerBlock_ (blockSize * blockSize),
     localError_ (new bool (false)),
-    errs_ (new Teuchos::RCP<std::ostringstream> ()) // ptr to a null ptr
+    errs_ (new Teuchos::RCP<std::ostringstream> ()), // ptr to a null ptr
+    use_kokkos_kernels_spmv_impl(false)
   {
     /// KK : additional check is needed that graph is fill complete.
     TEUCHOS_TEST_FOR_EXCEPTION(
@@ -725,15 +731,12 @@ public:
     }
   }
 
-
-
-
-
   template<class Scalar, class LO, class GO, class Node>
   BlockCrsMatrix<Scalar, LO, GO, Node>::
   BlockCrsMatrix (const crs_graph_type& graph,
                   const Kokkos::View<Scalar*, device_type> &values,
-                  const LO blockSize) :
+                  const LO blockSize,
+                  const bool use_kokkos_kernels) :
     dist_object_type (graph.getMap ()),
     graph_ (graph),
     rowMeshMap_ (* (graph.getRowMap ())),
@@ -743,7 +746,8 @@ public:
     pointImporter_ (new Teuchos::RCP<typename crs_graph_type::import_type> ()),
     offsetPerBlock_ (blockSize * blockSize),
     localError_ (new bool (false)),
-    errs_ (new Teuchos::RCP<std::ostringstream> ()) // ptr to a null ptr
+    errs_ (new Teuchos::RCP<std::ostringstream> ()), // ptr to a null ptr
+    use_kokkos_kernels_spmv_impl(use_kokkos_kernels)
   {
     /// KK : additional check is needed that graph is fill complete.
     TEUCHOS_TEST_FOR_EXCEPTION(
@@ -786,15 +790,9 @@ public:
 
       const auto numValEnt = ind_h.extent(0) * offsetPerBlock ();
       TEUCHOS_ASSERT_EQUALITY(numValEnt, values.size());
-
       val_ = decltype (val_) (values);
     }
   }
-
-
-
-
-
 
   template<class Scalar, class LO, class GO, class Node>
   BlockCrsMatrix<Scalar, LO, GO, Node>::
@@ -1575,6 +1573,23 @@ public:
   }
 
   template<class Scalar, class LO, class GO, class Node>
+  typename BlockCrsMatrix<Scalar, LO, GO, Node>::local_matrix_device_type
+  BlockCrsMatrix<Scalar, LO, GO, Node>::
+  getLocalMatrixDevice () const
+  {
+    auto numCols = this->graph_.getColMap()->getNodeNumElements();
+    auto val = val_.getDeviceView(Access::ReadWrite);
+    const LO blockSize = this->getBlockSize ();
+    const auto graph = this->graph_.getLocalGraphDevice ();
+
+    return local_matrix_device_type("Tpetra::BlockCrsMatrix::lclMatrixDevice",
+                                    numCols,
+                                    val,
+                                    graph,
+                                    blockSize);
+  }
+
+  template<class Scalar, class LO, class GO, class Node>
   void
   BlockCrsMatrix<Scalar, LO, GO, Node>::
   localApplyBlockNoTrans (const BlockMultiVector<Scalar, LO, GO, Node>& X,
@@ -1599,9 +1614,18 @@ public:
     auto val = val_.getDeviceView(Access::ReadWrite);
 
     {
-      Teuchos::TimeMonitor timer52(*Teuchos::TimeMonitor::getNewTimer("5.2)   BlockCrs local apply (tpetra))"));
-      bcrsLocalApplyNoTrans (alpha_impl, graph, val, blockSize, X_lcl,
-                             beta_impl, Y_lcl);
+      if (use_kokkos_kernels_spmv_impl) {
+        Teuchos::TimeMonitor timer52(*Teuchos::TimeMonitor::getNewTimer("5.2)   BlockCrs local apply (kokkoskernels))"));
+
+        auto A_lcl = getLocalMatrixDevice();
+        KokkosSparse::spmv (KokkosSparse::NoTranspose, alpha_impl, A_lcl, X_lcl, beta, Y_lcl);
+
+      } else {
+        Teuchos::TimeMonitor timer52(*Teuchos::TimeMonitor::getNewTimer("5.2)   BlockCrs local apply (tpetra))"));
+
+        bcrsLocalApplyNoTrans (alpha_impl, graph, val, blockSize, X_lcl,
+                               beta_impl, Y_lcl);
+      }
     }
   }
 
