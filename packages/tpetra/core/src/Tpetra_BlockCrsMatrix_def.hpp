@@ -1541,9 +1541,14 @@ public:
           *X_colMap_ = rcp (new BMV (* (graph_.getColMap ()), getBlockSize (),
                                      static_cast<LO> (X.getNumVectors ())));
         }
-        (*X_colMap_)->getMultiVectorView().doImport (X.getMultiVectorView (),
-                                                     **pointImporter_,
-                                                     ::Tpetra::REPLACE);
+
+        {
+          Teuchos::TimeMonitor timer51(*Teuchos::TimeMonitor::getNewTimer("5.1)   BlockCrs doImport"));
+          (*X_colMap_)->getMultiVectorView().doImport (X.getMultiVectorView (),
+                                                       **pointImporter_,
+                                                       ::Tpetra::REPLACE);
+        }
+
         try {
           X_colMap = &(**X_colMap_);
         }
@@ -1617,8 +1622,11 @@ public:
     auto Y_lcl = Y_mv.getLocalViewDevice (Access::ReadWrite);
     auto val = val_.getDeviceView(Access::ReadWrite);
 
-    bcrsLocalApplyNoTrans (alpha_impl, graph, val, blockSize, X_lcl,
-                           beta_impl, Y_lcl);
+    {
+      Teuchos::TimeMonitor timer52(*Teuchos::TimeMonitor::getNewTimer("5.2)   BlockCrs local apply (tpetra))"));
+      bcrsLocalApplyNoTrans (alpha_impl, graph, val, blockSize, X_lcl,
+                             beta_impl, Y_lcl);
+    }
   }
 
   template<class Scalar, class LO, class GO, class Node>
