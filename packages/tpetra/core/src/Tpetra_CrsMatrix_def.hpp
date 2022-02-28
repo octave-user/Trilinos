@@ -5280,10 +5280,13 @@ CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>::
       RCP<MV> X_colMapNonConst = getColumnMapMultiVector (X_in);
 
       // Import from the domain Map MV to the column Map MV.
-      {
+      if (time_stuff){
         Teuchos::TimeMonitor timer71(*Teuchos::TimeMonitor::getNewTimer("7.1)   PointCrs doImport"));
         X_colMapNonConst->doImport (X_in, *importer, INSERT);
+      } else {
+        X_colMapNonConst->doImport (X_in, *importer, INSERT);
       }
+
       X_colMap = rcp_const_cast<const MV> (X_colMapNonConst);
     }
 
@@ -5569,9 +5572,14 @@ CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>::
     if(nrows != 0)
       maxRowImbalance = getLocalMaxNumRowEntries() - (getLocalNumEntries() / nrows);
 
-    {
+    if (time_stuff){
       Teuchos::TimeMonitor timer72(*Teuchos::TimeMonitor::getNewTimer("7.2)   PointCrs local apply"));
 
+      if(size_t(maxRowImbalance) >= Tpetra::Details::Behavior::rowImbalanceThreshold())
+        matrix_lcl->applyImbalancedRows (X_lcl, Y_lcl, mode, alpha, beta);
+      else
+        matrix_lcl->apply (X_lcl, Y_lcl, mode, alpha, beta);
+    } else {
       if(size_t(maxRowImbalance) >= Tpetra::Details::Behavior::rowImbalanceThreshold())
         matrix_lcl->applyImbalancedRows (X_lcl, Y_lcl, mode, alpha, beta);
       else

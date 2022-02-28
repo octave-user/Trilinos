@@ -922,6 +922,9 @@ namespace Tpetra {
     CrsMatrix (const CrsMatrix<Scalar, LocalOrdinal, GlobalOrdinal, Node>& source,
                const Teuchos::DataAccess copyOrView);
 
+    void set_timer_on_off (const bool timer_on_off) { time_stuff = timer_on_off; }
+
+
     /// \brief Destructor (virtual for memory safety of derived classes).
     ///
     /// \note To Tpetra developers: See the C++ Core Guidelines C.21
@@ -1304,6 +1307,9 @@ namespace Tpetra {
                         const LocalOrdinal inputCols[]);
 
   private:
+
+    bool time_stuff = true;
+
     /// \brief Whether sumIntoLocalValues and sumIntoGlobalValues
     ///   should use atomic updates by default.
     ///

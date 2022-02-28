@@ -1540,8 +1540,12 @@ public:
                                      static_cast<LO> (X.getNumVectors ())));
         }
 
-        {
+        if (time_stuff){
           Teuchos::TimeMonitor timer51(*Teuchos::TimeMonitor::getNewTimer("5.1)   BlockCrs doImport"));
+          (*X_colMap_)->getMultiVectorView().doImport (X.getMultiVectorView (),
+                                                       **pointImporter_,
+                                                       ::Tpetra::REPLACE);
+        } else {
           (*X_colMap_)->getMultiVectorView().doImport (X.getMultiVectorView (),
                                                        **pointImporter_,
                                                        ::Tpetra::REPLACE);
@@ -1639,16 +1643,27 @@ public:
 
     {
       if (use_kokkos_kernels_spmv_impl) {
-        Teuchos::TimeMonitor timer52(*Teuchos::TimeMonitor::getNewTimer("5.2)   BlockCrs local apply (kokkoskernels))"));
+        if (time_stuff){
+          Teuchos::TimeMonitor timer52(*Teuchos::TimeMonitor::getNewTimer("5.2)   BlockCrs local apply (kokkoskernels))"));
 
-        auto A_lcl = getLocalMatrixDevice();
-        KokkosSparse::spmv (KokkosSparse::NoTranspose, alpha_impl, A_lcl, X_lcl, beta, Y_lcl);
+          auto A_lcl = getLocalMatrixDevice();
+          KokkosSparse::spmv (KokkosSparse::NoTranspose, alpha_impl, A_lcl, X_lcl, beta, Y_lcl);
+        }
+        else {
+          auto A_lcl = getLocalMatrixDevice();
+          KokkosSparse::spmv (KokkosSparse::NoTranspose, alpha_impl, A_lcl, X_lcl, beta, Y_lcl);
+        }
 
       } else {
-        Teuchos::TimeMonitor timer52(*Teuchos::TimeMonitor::getNewTimer("5.2)   BlockCrs local apply (tpetra))"));
+        if (time_stuff){
+          Teuchos::TimeMonitor timer52(*Teuchos::TimeMonitor::getNewTimer("5.2)   BlockCrs local apply (tpetra))"));
 
-        bcrsLocalApplyNoTrans (alpha_impl, graph, val, blockSize, X_lcl,
-                               beta_impl, Y_lcl);
+          bcrsLocalApplyNoTrans (alpha_impl, graph, val, blockSize, X_lcl,
+                                 beta_impl, Y_lcl);
+        } else {
+          bcrsLocalApplyNoTrans (alpha_impl, graph, val, blockSize, X_lcl,
+                                 beta_impl, Y_lcl);
+        }
       }
     }
   }

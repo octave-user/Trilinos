@@ -555,6 +555,9 @@ int main (int argc, char *argv[])
         std::cerr << os.str ();
       }
       // matrix vector multiplication
+      A_bcrs->set_timer_on_off(false);
+      A_bcrs->apply(*X, *B_bcrs);
+      A_bcrs->set_timer_on_off(true);
       {
         for (LO iter=0;iter<repeat;++iter) {
           TimeMonitor timerBlockCrsApply(*TimeMonitor::getNewTimer("5) BlockCrs Apply"));
@@ -670,6 +673,9 @@ int main (int argc, char *argv[])
         std::cerr << os.str ();
       }
       // perform on point crs matrix
+      A_crs->set_timer_on_off(false);
+      A_crs->apply(*X, *B_crs);
+      A_crs->set_timer_on_off(true);
       {
         for (LO iter=0;iter<repeat;++iter) {
           TimeMonitor timerPointCrsApply(*TimeMonitor::getNewTimer("7) PointCrs Apply"));

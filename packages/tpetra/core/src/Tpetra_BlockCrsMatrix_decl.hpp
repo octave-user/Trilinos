@@ -287,6 +287,8 @@ public:
   //! Destructor (declared virtual for memory safety).
   virtual ~BlockCrsMatrix () {}
 
+  void set_timer_on_off (const bool timer_on_off) { time_stuff = timer_on_off; }
+
   //@}
   //! \name Implementation of Tpetra::Operator
   //@{
@@ -912,6 +914,7 @@ private:
   Teuchos::RCP<Teuchos::RCP<std::ostringstream> > errs_;
 
   bool use_kokkos_kernels_spmv_impl;
+  bool time_stuff = true;
 
   //! Mark that a local error occurred, and get a stream for reporting it.
   std::ostream& markLocalErrorAndGetStream ();
