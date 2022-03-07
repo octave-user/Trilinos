@@ -553,7 +553,7 @@ namespace Impl {
       } else {
         policy = policy_type(numLocalMeshRows, 1, 1);
       }
-      Kokkos::parallel_for (policy, functor);
+      Kokkos::parallel_for ("tpetra local apply internal 1", policy, functor);
       
       // Compute the remaining columns of Y.
       for (LO j = 1; j < numVecs; ++j) {
@@ -561,7 +561,7 @@ namespace Impl {
         auto Y_j = Kokkos::subview (Y_out, Kokkos::ALL (), j);
         functor.setX (X_j);
         functor.setY (Y_j);
-        Kokkos::parallel_for (policy, functor);
+        Kokkos::parallel_for ("tpetra local apply internal 2", policy, functor);
       }
     } else {
       functor_type functor (alpha, graph, val, blockSize, X_0, beta, Y_0);
@@ -572,7 +572,7 @@ namespace Impl {
         auto Y_j = Kokkos::subview (Y_out, Kokkos::ALL (), j);
         functor.setX (X_j);
         functor.setY (Y_j);
-        Kokkos::parallel_for (policy, functor);
+        Kokkos::parallel_for ("tpetra local apply internal 3", policy, functor);
       }
     }
   }
