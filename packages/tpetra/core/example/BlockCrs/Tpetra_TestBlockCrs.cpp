@@ -435,7 +435,8 @@ int main (int argc, char *argv[])
         Kokkos::deep_copy(blocks, blocks_host);
 
         Kokkos::parallel_for
-          (Kokkos::RangePolicy<exec_space, LO> (0, num_owned_elements),
+          ("Old Block Fill",
+           Kokkos::RangePolicy<exec_space, LO> (0, num_owned_elements),
            KOKKOS_LAMBDA (const LO row) {
             const auto beg = rowptr(row);
             const auto end = rowptr(row+1);
@@ -470,7 +471,8 @@ int main (int argc, char *argv[])
         TimeMonitor timerLocalBlockCrsFill(*TimeMonitor::getNewTimer("2) LocalBlockCrsFillNew"));
 
         Kokkos::parallel_for
-          (Kokkos::RangePolicy<exec_space, LO> (0, num_owned_elements),
+          ("BlockFill",
+           Kokkos::RangePolicy<exec_space, LO> (0, num_owned_elements),
            KOKKOS_LAMBDA (const LO row) {
 
             GO indx = rowptr(row)*blocksize*blocksize;
@@ -595,7 +597,7 @@ int main (int argc, char *argv[])
         // here, we create pointwise row and column maps manually.
         decltype(mesh_gids) crs_gids("crs_gids", mesh_gids.extent(0)*blocksize);
         Kokkos::parallel_for
-          (num_owned_and_remote_elements,
+          ("store gids", num_owned_and_remote_elements,
            KOKKOS_LAMBDA(const LO idx) {
             for (LO l=0;l<blocksize;++l)
               crs_gids(idx*blocksize+l) = mesh_gids(idx)*blocksize+l;
@@ -611,7 +613,8 @@ int main (int argc, char *argv[])
         colidx_view_type crs_colidx = colidx_view_type("crs_colidx", colidx.extent(0)*blocksize*blocksize);
 
         Kokkos::parallel_for
-          (Kokkos::RangePolicy<exec_space, LO> (0, num_owned_elements),
+          ("Fill CRS",
+           Kokkos::RangePolicy<exec_space, LO> (0, num_owned_elements),
            KOKKOS_LAMBDA (const LO &idx) {
             const GO nnz_per_block_row = rowptr(idx+1)-rowptr(idx); // FIXME could be LO if no duplicates
             const GO nnz_per_point_row = nnz_per_block_row*blocksize;
@@ -655,6 +658,13 @@ int main (int argc, char *argv[])
                                                Teuchos::null));
 
       } // end conversion timer
+
+      if (commWorld->getRank () == 0) {
+        std::cout << "DIMS (CRS)  = " << A_crs->getGlobalNumCols() << " x " << A_crs->getGlobalNumRows()
+                  << " : " << A_crs->getGlobalNumEntries() << std::endl;
+        std::cout << "DIMS (BCRS) = " << A_bcrs->getGlobalNumCols() << " x " << A_bcrs->getGlobalNumRows()
+                  << " : " << A_bcrs->getGlobalNumEntries() << std::endl;
+      }
 
       if (verbose) {
         A_crs->describe(*out, Teuchos::VERB_EXTREME);
